@@ -11,11 +11,11 @@ randomized trees. Single and multi-output problems are both handled.
 #          Joly Arnaud <arnaud.v.joly@gmail.com>
 #          Fares Hedayati <fares.hedayati@gmail.com>
 #          Nelson Liu <nelson@nelsonliu.me>
+#          Raghav R V <rvraghav93@gmail.com>
 #
 # License: BSD 3 clause
 
 from __future__ import division
-
 
 import numbers
 import warnings
@@ -93,7 +93,8 @@ class BaseDecisionTree(six.with_metaclass(ABCMeta, BaseEstimator)):
                  min_impurity_decrease,
                  min_impurity_split,
                  class_weight=None,
-                 presort=False):
+                 presort=False,
+                 missing_values=None):
         self.criterion = criterion
         self.splitter = splitter
         self.max_depth = max_depth
@@ -107,13 +108,29 @@ class BaseDecisionTree(six.with_metaclass(ABCMeta, BaseEstimator)):
         self.min_impurity_split = min_impurity_split
         self.class_weight = class_weight
         self.presort = presort
+        self.missing_values = missing_values
+        self.allow_missing = missing_values is not None
+
+        # If missing values is int/None
+        self._allow_nan = False
+        self.missing_values = missing_values
+
+        if self.allow_missing:
+            if (isinstance(missing_values, str) and
+                    missing_values.strip().lower() == "nan"):
+                self._allow_nan = True
+                self.missing_values = np.nan
+            elif not isinstance(missing_values, int):
+                raise ValueError("missing_values should be 'NaN' or int. "
+                                 "Got %s", missing_values)
 
     def fit(self, X, y, sample_weight=None, check_input=True,
-            X_idx_sorted=None):
-
+            X_idx_sorted=None, missing_mask=None):
         random_state = check_random_state(self.random_state)
+
         if check_input:
-            X = check_array(X, dtype=DTYPE, accept_sparse="csc")
+            X = check_array(X, dtype=DTYPE, accept_sparse="csc",
+                            allow_nan=self._allow_nan)
             y = check_array(y, ensure_2d=False, dtype=None)
             if issparse(X):
                 X.sort_indices()
@@ -309,6 +326,7 @@ class BaseDecisionTree(six.with_metaclass(ABCMeta, BaseEstimator)):
         # but do not handle any presorting themselves. Ensemble algorithms
         # which desire presorting must do presorting themselves and pass that
         # matrix into each tree.
+        # Same goes for missing_mask
         if X_idx_sorted is None and presort:
             X_idx_sorted = np.asfortranarray(np.argsort(X, axis=0),
                                              dtype=np.int32)
@@ -319,15 +337,28 @@ class BaseDecisionTree(six.with_metaclass(ABCMeta, BaseEstimator)):
                              ".shape = {})".format(X.shape,
                                                    X_idx_sorted.shape))
 
+        missing_mask = self._validate_missing_mask(X, missing_mask)
+        if self.allow_missing:
+            if issparse(X) and missing_mask.shape != X.data.shape:
+                raise ValueError("The shape of X.data (X.data.shape = {}) "
+                                 "doesn't match the shape of missing_mask "
+                                 "(missing_mask.shape = {})"
+                                 .format(X.data.shape, missing_mask.shape))
+            elif not issparse(X) and missing_mask.shape != X.shape:
+                raise ValueError("The shape of X (X.shape = {}) "
+                                 "doesn't match the shape of missing_mask "
+                                 "(missing_mask.shape = {})"
+                                 .format(X.shape, missing_mask.shape))
+
         # Build tree
         criterion = self.criterion
         if not isinstance(criterion, Criterion):
             if is_classification:
-                criterion = CRITERIA_CLF[self.criterion](self.n_outputs_,
-                                                         self.n_classes_)
+                criterion = CRITERIA_CLF[self.criterion](
+                    self.n_outputs_, self.n_classes_, self.allow_missing)
             else:
-                criterion = CRITERIA_REG[self.criterion](self.n_outputs_,
-                                                         n_samples)
+                criterion = CRITERIA_REG[self.criterion](
+                    self.n_outputs_, n_samples, self.allow_missing)
 
         SPLITTERS = SPARSE_SPLITTERS if issparse(X) else DENSE_SPLITTERS
 
@@ -338,9 +369,14 @@ class BaseDecisionTree(six.with_metaclass(ABCMeta, BaseEstimator)):
                                                 min_samples_leaf,
                                                 min_weight_leaf,
                                                 random_state,
-                                                self.presort)
+                                                self.presort,
+                                                self.allow_missing)
 
-        self.tree_ = Tree(self.n_features_, self.n_classes_, self.n_outputs_)
+        self.tree_ = Tree(n_features=self.n_features_,
+                          n_classes=self.n_classes_,
+                          n_outputs=self.n_outputs_,
+                          allow_missing=self.allow_missing,
+                          missing_values=self.missing_values)
 
         # Use BestFirst if max_leaf_nodes given; use DepthFirst otherwise
         if max_leaf_nodes < 0:
@@ -359,7 +395,8 @@ class BaseDecisionTree(six.with_metaclass(ABCMeta, BaseEstimator)):
                                            self.min_impurity_decrease,
                                            min_impurity_split)
 
-        builder.build(self.tree_, X, y, sample_weight, X_idx_sorted)
+        builder.build(self.tree_, X=X, y=y, sample_weight=sample_weight,
+                      X_idx_sorted=X_idx_sorted, missing_mask=missing_mask)
 
         if self.n_outputs_ == 1:
             self.n_classes_ = self.n_classes_[0]
@@ -370,7 +407,8 @@ class BaseDecisionTree(six.with_metaclass(ABCMeta, BaseEstimator)):
     def _validate_X_predict(self, X, check_input):
         """Validate X whenever one tries to predict, apply, predict_proba"""
         if check_input:
-            X = check_array(X, dtype=DTYPE, accept_sparse="csr")
+            X = check_array(X, dtype=DTYPE, accept_sparse="csr",
+                            allow_nan=self._allow_nan)
             if issparse(X) and (X.indices.dtype != np.intc or
                                 X.indptr.dtype != np.intc):
                 raise ValueError("No support for np.int64 index based "
@@ -385,7 +423,25 @@ class BaseDecisionTree(six.with_metaclass(ABCMeta, BaseEstimator)):
 
         return X
 
-    def predict(self, X, check_input=True):
+    def _validate_missing_mask(self, X, missing_mask=None):
+        """Generate a new missing_mask or validate a given one"""
+        if self.allow_missing and missing_mask is None:
+            # Fortran ordered 8 bit boolean mask
+            if issparse(X):
+                to_mask = X.data
+            else:
+                to_mask = X
+
+            if self._allow_nan:  # Missing value is a NaN
+                missing_mask = np.asfortranarray(np.isnan(to_mask),
+                                                 dtype=np.bool8)
+            else:
+                missing_mask = np.zeros(to_mask.shape,
+                                        dtype=np.bool8, order='F')
+                missing_mask[to_mask == self.missing_values] = True
+        return missing_mask
+
+    def predict(self, X, check_input=True, missing_mask=None):
         """Predict class or regression value for X.
 
         For a classification model, the predicted class for each sample in X is
@@ -410,7 +466,8 @@ class BaseDecisionTree(six.with_metaclass(ABCMeta, BaseEstimator)):
         """
         check_is_fitted(self, 'tree_')
         X = self._validate_X_predict(X, check_input)
-        proba = self.tree_.predict(X)
+        missing_mask = self._validate_missing_mask(X, missing_mask)
+        proba = self.tree_.predict(X, missing_mask=missing_mask)
         n_samples = X.shape[0]
 
         # Classification
@@ -436,7 +493,7 @@ class BaseDecisionTree(six.with_metaclass(ABCMeta, BaseEstimator)):
             else:
                 return proba[:, :, 0]
 
-    def apply(self, X, check_input=True):
+    def apply(self, X, check_input=True, missing_mask=None):
         """
         Returns the index of the leaf that each sample is predicted as.
 
@@ -463,9 +520,10 @@ class BaseDecisionTree(six.with_metaclass(ABCMeta, BaseEstimator)):
         """
         check_is_fitted(self, 'tree_')
         X = self._validate_X_predict(X, check_input)
-        return self.tree_.apply(X)
+        missing_mask = self._validate_missing_mask(X, missing_mask)
+        return self.tree_.apply(X, missing_mask=missing_mask)
 
-    def decision_path(self, X, check_input=True):
+    def decision_path(self, X, check_input=True, missing_mask=None):
         """Return the decision path in the tree
 
         .. versionadded:: 0.18
@@ -489,7 +547,8 @@ class BaseDecisionTree(six.with_metaclass(ABCMeta, BaseEstimator)):
 
         """
         X = self._validate_X_predict(X, check_input)
-        return self.tree_.decision_path(X)
+        missing_mask = self._validate_missing_mask(X, missing_mask)
+        return self.tree_.decision_path(X, missing_mask=missing_mask)
 
     @property
     def feature_importances_(self):
@@ -540,9 +599,9 @@ class DecisionTreeClassifier(BaseDecisionTree, ClassifierMixin):
             - If "log2", then `max_features=log2(n_features)`.
             - If None, then `max_features=n_features`.
 
-        Note: the search for a split does not stop until at least one
-        valid partition of the node samples is found, even if it requires to
-        effectively inspect more than ``max_features`` features.
+        Note: the scikit-learn/search for a split does not stop until at least
+        one valid partition of the node samples is found, even if it requires
+        to effectively inspect more than ``max_features`` features.
 
     max_depth : int or None, optional (default=None)
         The maximum depth of the tree. If None, then nodes are expanded until
@@ -626,6 +685,12 @@ class DecisionTreeClassifier(BaseDecisionTree, ClassifierMixin):
         datasets, setting this to true may slow down the training process.
         When using either a smaller dataset or a restricted depth, this may
         speed up the training.
+
+    missing_values : integer or "NaN", optional (default=None)
+        The placeholder for the missing values. If not None, all missing
+        values will be imputed.
+
+        For missing values encoded as np.nan, use the string value "NaN".
 
     Attributes
     ----------
@@ -715,7 +780,8 @@ class DecisionTreeClassifier(BaseDecisionTree, ClassifierMixin):
                  min_impurity_decrease=0.,
                  min_impurity_split=None,
                  class_weight=None,
-                 presort=False):
+                 presort=False,
+                 missing_values=None):
         super(DecisionTreeClassifier, self).__init__(
             criterion=criterion,
             splitter=splitter,
@@ -729,7 +795,8 @@ class DecisionTreeClassifier(BaseDecisionTree, ClassifierMixin):
             random_state=random_state,
             min_impurity_decrease=min_impurity_decrease,
             min_impurity_split=min_impurity_split,
-            presort=presort)
+            presort=presort,
+            missing_values=missing_values)
 
     def fit(self, X, y, sample_weight=None, check_input=True,
             X_idx_sorted=None):
@@ -775,7 +842,7 @@ class DecisionTreeClassifier(BaseDecisionTree, ClassifierMixin):
             X_idx_sorted=X_idx_sorted)
         return self
 
-    def predict_proba(self, X, check_input=True):
+    def predict_proba(self, X, check_input=True, missing_mask=None):
         """Predict class probabilities of the input samples X.
 
         The predicted class probability is the fraction of samples of the same
@@ -801,7 +868,8 @@ class DecisionTreeClassifier(BaseDecisionTree, ClassifierMixin):
         """
         check_is_fitted(self, 'tree_')
         X = self._validate_X_predict(X, check_input)
-        proba = self.tree_.predict(X)
+        missing_mask = self._validate_missing_mask(X, missing_mask)
+        proba = self.tree_.predict(X, missing_mask)
 
         if self.n_outputs_ == 1:
             proba = proba[:, :self.n_classes_]
@@ -823,7 +891,7 @@ class DecisionTreeClassifier(BaseDecisionTree, ClassifierMixin):
 
             return all_proba
 
-    def predict_log_proba(self, X):
+    def predict_log_proba(self, X, missing_mask=None):
         """Predict class log-probabilities of the input samples X.
 
         Parameters
@@ -840,7 +908,7 @@ class DecisionTreeClassifier(BaseDecisionTree, ClassifierMixin):
             The class log-probabilities of the input samples. The order of the
             classes corresponds to that in the attribute `classes_`.
         """
-        proba = self.predict_proba(X)
+        proba = self.predict_proba(X, missing_mask=missing_mask)
 
         if self.n_outputs_ == 1:
             return np.log(proba)
@@ -957,6 +1025,12 @@ class DecisionTreeRegressor(BaseDecisionTree, RegressorMixin):
         When using either a smaller dataset or a restricted depth, this may
         speed up the training.
 
+    missing_values : integer or "NaN", optional (default=None)
+        The placeholder for the missing values. If not None, all missing
+        values will be imputed.
+
+        For missing values encoded as np.nan, use the string value "NaN".
+
     Attributes
     ----------
     feature_importances_ : array of shape = [n_features]
@@ -1036,7 +1110,8 @@ class DecisionTreeRegressor(BaseDecisionTree, RegressorMixin):
                  max_leaf_nodes=None,
                  min_impurity_decrease=0.,
                  min_impurity_split=None,
-                 presort=False):
+                 presort=False,
+                 missing_values=None):
         super(DecisionTreeRegressor, self).__init__(
             criterion=criterion,
             splitter=splitter,
@@ -1049,7 +1124,8 @@ class DecisionTreeRegressor(BaseDecisionTree, RegressorMixin):
             random_state=random_state,
             min_impurity_decrease=min_impurity_decrease,
             min_impurity_split=min_impurity_split,
-            presort=presort)
+            presort=presort,
+            missing_values=missing_values)
 
     def fit(self, X, y, sample_weight=None, check_input=True,
             X_idx_sorted=None):
@@ -1139,7 +1215,8 @@ class ExtraTreeClassifier(DecisionTreeClassifier):
                  max_leaf_nodes=None,
                  min_impurity_decrease=0.,
                  min_impurity_split=None,
-                 class_weight=None):
+                 class_weight=None,
+                 missing_values=None):
         super(ExtraTreeClassifier, self).__init__(
             criterion=criterion,
             splitter=splitter,
@@ -1152,7 +1229,8 @@ class ExtraTreeClassifier(DecisionTreeClassifier):
             class_weight=class_weight,
             min_impurity_decrease=min_impurity_decrease,
             min_impurity_split=min_impurity_split,
-            random_state=random_state)
+            random_state=random_state,
+            missing_values=missing_values)
 
 
 class ExtraTreeRegressor(DecisionTreeRegressor):
@@ -1198,7 +1276,8 @@ class ExtraTreeRegressor(DecisionTreeRegressor):
                  random_state=None,
                  min_impurity_decrease=0.,
                  min_impurity_split=None,
-                 max_leaf_nodes=None):
+                 max_leaf_nodes=None,
+                 missing_values=None):
         super(ExtraTreeRegressor, self).__init__(
             criterion=criterion,
             splitter=splitter,
@@ -1210,4 +1289,5 @@ class ExtraTreeRegressor(DecisionTreeRegressor):
             max_leaf_nodes=max_leaf_nodes,
             min_impurity_decrease=min_impurity_decrease,
             min_impurity_split=min_impurity_split,
-            random_state=random_state)
+            random_state=random_state,
+            missing_values=missing_values)
