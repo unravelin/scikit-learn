@@ -55,6 +55,10 @@ Enhancements
      (`#6101 <https://github.com/scikit-learn/scikit-learn/pull/6101>`_)
      By `Ibraim Ganiev`_.
 
+   - Added ``sample_weight`` parameter to :meth:`pipeline.Pipeline.score`.
+     (`#7723 <https://github.com/scikit-learn/scikit-learn/pull/7723>`_)
+     by `Mikhail Korobov`_.
+
 Bug fixes
 .........
 
@@ -4633,7 +4637,7 @@ David Huard, Dave Morrill, Ed Schofield, Travis Oliphant, Pearu Peterson.
 
 .. _Yannick Schwartz: https://team.inria.fr/parietal/schwarty/
 
-.. _Mikhail Korobov: http://kmike.ru/pages/about/
+.. _Mikhail Korobov: https://github.com/kmike
 
 .. _Kyle Kastner: http://kastnerkyle.github.io
 
