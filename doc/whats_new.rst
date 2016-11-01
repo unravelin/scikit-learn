@@ -93,6 +93,9 @@ Bug fixes
 Version 0.18.1
 ==============
 
+Changelog
+---------
+
 Enhancements
 .........
    - Improved ``sample_without_replacement`` speed by utilizing
