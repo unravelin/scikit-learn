@@ -799,7 +799,7 @@ class DecisionTreeClassifier(BaseDecisionTree, ClassifierMixin):
             missing_values=missing_values)
 
     def fit(self, X, y, sample_weight=None, check_input=True,
-            X_idx_sorted=None):
+            X_idx_sorted=None, missing_mask=None):
         """Build a decision tree classifier from the training set (X, y).
 
         Parameters
@@ -839,7 +839,8 @@ class DecisionTreeClassifier(BaseDecisionTree, ClassifierMixin):
             X, y,
             sample_weight=sample_weight,
             check_input=check_input,
-            X_idx_sorted=X_idx_sorted)
+            X_idx_sorted=X_idx_sorted,
+            missing_mask=missing_mask)
         return self
 
     def predict_proba(self, X, check_input=True, missing_mask=None):
@@ -1128,7 +1129,7 @@ class DecisionTreeRegressor(BaseDecisionTree, RegressorMixin):
             missing_values=missing_values)
 
     def fit(self, X, y, sample_weight=None, check_input=True,
-            X_idx_sorted=None):
+            X_idx_sorted=None, missing_mask=None):
         """Build a decision tree regressor from the training set (X, y).
 
         Parameters
@@ -1167,7 +1168,8 @@ class DecisionTreeRegressor(BaseDecisionTree, RegressorMixin):
             X, y,
             sample_weight=sample_weight,
             check_input=check_input,
-            X_idx_sorted=X_idx_sorted)
+            X_idx_sorted=X_idx_sorted,
+            missing_mask=missing_mask)
         return self
 
 
