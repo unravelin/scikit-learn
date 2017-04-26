@@ -160,8 +160,6 @@ class BaseForest(six.with_metaclass(ABCMeta, BaseEnsemble)):
         self.class_weight = class_weight
         self.allow_missing = missing_values is not None
 
-        # If missing values is int/None
-        self._allow_nan = False
         self.missing_values = missing_values
 
     def apply(self, X):
@@ -256,20 +254,12 @@ class BaseForest(six.with_metaclass(ABCMeta, BaseEnsemble)):
             Returns self.
         """
         if self.allow_missing:
-            if ((isinstance(self.missing_values, str) and
-                 self.missing_values.strip().lower() == "nan") or
-                (isinstance(self.missing_values, np.float) and
-                 np.isnan(self.missing_values))):
-
-                self._allow_nan = True
-                self.missing_values = np.nan
-            elif not isinstance(self.missing_values, int):
-                raise ValueError("missing_values should be 'NaN' or int. "
+            if not isinstance(self.missing_values, int):
+                raise ValueError("missing_values should be int. "
                                  "Got %s" % self.missing_values)
 
         # Validate or convert input data
-        X = check_array(X, accept_sparse="csc", dtype=DTYPE,
-                        allow_nan=self._allow_nan)
+        X = check_array(X, accept_sparse="csc", dtype=DTYPE)
         missing_mask = self._validate_missing_mask(X)
         y = check_array(y, accept_sparse='csc', ensure_2d=False, dtype=None)
         if sample_weight is not None:
@@ -341,7 +331,6 @@ class BaseForest(six.with_metaclass(ABCMeta, BaseEnsemble)):
                 tree = self._make_estimator(append=False)
                 tree.set_params(random_state=random_state.randint(MAX_INT))
                 tree.allow_missing = self.allow_missing
-                tree._allow_nan = self._allow_nan
                 trees.append(tree)
 
             # Parallel loop: we use the threading backend as the Cython code
@@ -389,11 +378,8 @@ class BaseForest(six.with_metaclass(ABCMeta, BaseEnsemble)):
         """Generate a new missing_mask or validate a given one"""
         if self.allow_missing and missing_mask is None:
             # Fortran ordered 8 bit boolean mask
-            if self._allow_nan:  # Missing value is a NaN
-                missing_mask = np.asfortranarray(np.isnan(X), dtype=np.bool8)
-            else:
-                missing_mask = np.zeros(X.shape, dtype=np.bool8, order='F')
-                missing_mask[X == self.missing_values] = True
+            missing_mask = np.zeros(X.shape, dtype=np.bool8, order='F')
+            missing_mask[X == self.missing_values] = True
         return missing_mask
 
     @property
@@ -1868,8 +1854,7 @@ class RandomTreesEmbedding(BaseForest):
         """
         # ensure_2d=False because there are actually unit test checking we fail
         # for 1d.
-        X = check_array(X, accept_sparse=['csc'], ensure_2d=False,
-                        allow_nan=self._allow_nan)
+        X = check_array(X, accept_sparse=['csc'], ensure_2d=False)
         if issparse(X):
             # Pre-sort indices to avoid that each individual tree of the
             # ensemble sorts the indices.

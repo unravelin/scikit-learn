@@ -54,13 +54,13 @@ y = [-1, -1, -1, 1, 1, 1]
 
 # toy sample with missing data
 X_missing = [[-2, -1], [-1, -1], [-1, -2], [1, 1], [1, 2], [2, 1],
-             [-2, np.nan], [-1, np.nan], [2, np.nan], [1, np.nan]]
+             [-2, -999], [-1, -999], [2, -999], [1, -999]]
 y_missing = [-1, -1, -1, 1, 1, 1, 1, 1, -1, -1]
 
 T = [[-1, -1], [2, 2], [3, 2]]
 true_result = [-1, 1, 1]
 
-T_missing = [[-1, -1], [2, 2], [3, 2], [-3, np.nan], [3, np.nan]]
+T_missing = [[-1, -1], [2, 2], [3, 2], [-3, -999], [3, -999]]
 true_result_missing = [-1, 1, 1, 1, -1]
 
 # also load the iris dataset
@@ -129,18 +129,18 @@ def check_classification_toy_missing_data(name):
     # Check classification on a toy dataset with missing values
     ForestClassifier = FOREST_CLASSIFIERS[name]
 
-    clf = ForestClassifier(n_estimators=10, missing_values="NaN",
+    clf = ForestClassifier(n_estimators=10, missing_values=-999,
                            random_state=1)
     clf.fit(X_missing, y_missing)
     assert_array_equal(clf.predict(T_missing), true_result_missing)
     assert_equal(10, len(clf))
 
     # Check if missing_values are correctly set
-    assert_true(np.all(list(np.isnan(clf.estimators_[i].missing_values)
-                            for i in range(10))))
+    assert_true(np.all(list(
+        clf.estimators_[i].missing_values == -999 for i in range(10))))
 
     clf = ForestClassifier(n_estimators=10, max_features=1,
-                           missing_values="NaN", random_state=1)
+                           missing_values=-999, random_state=1)
     clf.fit(X_missing, y_missing)
     assert_array_equal(clf.predict(T_missing), true_result_missing)
     assert_equal(10, len(clf))
@@ -151,7 +151,7 @@ def check_classification_toy_missing_data(name):
 
     # Enabling missing value support should not mess with the classification
     # for data without missing values
-    clf = ForestClassifier(n_estimators=10, missing_values="NaN",
+    clf = ForestClassifier(n_estimators=10, missing_values=-999,
                            random_state=1)
     clf.fit(X, y)
     assert_array_equal(clf.predict(T), true_result)
@@ -176,7 +176,7 @@ def check_iris_criterion(name, criterion):
                                % (criterion, score))
 
     clf = ForestClassifier(n_estimators=10, criterion=criterion,
-                           missing_values="NaN", random_state=1)
+                           missing_values=-999, random_state=1)
     clf.fit(iris.data, iris.target)
     score = clf.score(iris.data, iris.target)
     assert_greater(score, 0.9, "Failed with criterion %s and score = %f"
@@ -561,8 +561,8 @@ def check_multioutput_missing_value(name):
 
     X_train = [[-2, -1], [-1, -1], [-1, -2], [1, 1], [1, 2], [2, 1], [-2, 1],
                [-1, 1], [-1, 2], [2, -1], [1, -1], [1, -2],
-               [np.nan, -3], [np.nan, -2], [np.nan, -1],
-               [1, np.nan], [2, np.nan], [3, np.nan]]
+               [-999, -3], [-999, -2], [-999, -1],
+               [1, -999], [2, -999], [3, -999]]
     y_train = [[-1, 0], [-1, 0], [-1, 0], [1, 1], [1, 1], [1, 1], [-1, 2],
                [-1, 2], [-1, 2], [1, 3], [1, 3], [1, 3],
                [1, 3], [1, 3], [1, 3],
@@ -570,10 +570,10 @@ def check_multioutput_missing_value(name):
                # for 2nd output and 2/3 chance that its class 1 for 2nd output
                [1, 3], [1, 1], [1, 1]]
 
-    X_test = [[-1, -1], [1, 1], [-1, 1], [1, -1], [3, np.nan], [np.nan, -5]]
+    X_test = [[-1, -1], [1, 1], [-1, 1], [1, -1], [3, -999], [-999, -5]]
     y_test = [[-1, 0], [1, 1], [-1, 2], [1, 3], [1, 1], [1, 3]]
 
-    est = FOREST_CLASSIFIERS[name](random_state=0, missing_values="NaN",
+    est = FOREST_CLASSIFIERS[name](random_state=0, missing_values=-999,
                                    bootstrap=False)
     y_pred = est.fit(X_train, y_train).predict(X_test)
     assert_array_almost_equal(y_pred, y_test)

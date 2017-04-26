@@ -65,9 +65,9 @@ CLF_TREES = {
     "Presort-DecisionTreeClassifier": partial(DecisionTreeClassifier,
                                               presort=True),
     "MV-DecisionTreeClassifier": partial(DecisionTreeClassifier,
-                                         missing_values="NaN"),
+                                         missing_values=-999),
     "MV-Presort-DecisionTreeClassifier": partial(DecisionTreeClassifier,
-                                                 missing_values="NaN",
+                                                 missing_values=-999,
                                                  presort=True),
     "ExtraTreeClassifier": ExtraTreeClassifier,
 }
@@ -1774,7 +1774,7 @@ def test_criterion_copy():
 def test_tree_missing_value_handling_corner_cases_best_splitter():
     # All the missing values should be sent to a separate child in one of the
     # nodes
-    X_de = np.array([[np.nan], [np.nan], [np.nan], [np.nan],
+    X_de = np.array([[-999], [-999], [-999], [-999],
                     [0], [1], [2], [3], [4], [5],
                     [10], [11], [12], [13], [15]])
     X_sp = coo_matrix(X_de)
@@ -1782,7 +1782,7 @@ def test_tree_missing_value_handling_corner_cases_best_splitter():
 
     # Test both the dense and sparse splitters
     for X in (X_de, X_sp):
-        dtc = DecisionTreeClassifier(missing_values="NaN",
+        dtc = DecisionTreeClassifier(missing_values=-999,
                                      random_state=42).fit(X, y)
 
         # The 2nd partition of this tree splits the missing values to one side,
@@ -1799,13 +1799,13 @@ def test_tree_missing_value_handling_corner_cases_best_splitter():
         assert_array_equal(dtc.predict(X), y)
 
     # The missing should be sent along with available to left child
-    X_de = np.array([[np.nan], [np.nan], [np.nan], [np.nan],
+    X_de = np.array([[-999], [-999], [-999], [-999],
                      [0], [1], [2], [3], [4], [5]])
     X_sp = coo_matrix(X_de)
     y = np.array([1, 1, 1, 1, 1, 2, 2, 2, 2, 2])
 
     for X in (X_de, X_sp):
-        dtc = DecisionTreeClassifier(missing_values="NaN",
+        dtc = DecisionTreeClassifier(missing_values=-999,
                                      random_state=42).fit(X, y)
 
         assert_equal(dtc.tree_.threshold[0], 0.5)
@@ -1822,7 +1822,7 @@ def test_tree_missing_value_handling_corner_cases_best_splitter():
     y = np.array([2, 2, 2, 2, 1, 1, 1, 1, 2, 2])
 
     for X in (X_de, X_sp):
-        dtc = DecisionTreeClassifier(missing_values="NaN",
+        dtc = DecisionTreeClassifier(missing_values=-999,
                                      random_state=42).fit(X, y)
 
         assert_equal(dtc.tree_.threshold[0], 3.5)
@@ -1842,7 +1842,7 @@ def test_tree_missing_value_handling_corner_cases_best_splitter():
     y = rng.randint(0, 10, (10,))
 
     for X in (X_de, X_sp):
-        dtc = DecisionTreeClassifier(missing_values="NaN",
+        dtc = DecisionTreeClassifier(missing_values=-999,
                                      random_state=42).fit(X, y)
         # All the missing_direction for non-leaf nodes should be the default of
         # MISSING_DIR_RIGHT and for leaves it should be TREE_UNDEFINED
@@ -1856,13 +1856,13 @@ def test_tree_missing_value_handling_corner_cases_best_splitter():
 
     # When the missing values are equally from all the classes
     # the tree building should split it into separate node
-    X_de = np.array([[110], [100], [1], [2], [0], [np.nan], [500],
-                    [600], [np.nan], [5]])
+    X_de = np.array([[110], [100], [1], [2], [0], [-999], [500],
+                    [600], [-999], [5]])
     X_sp = coo_matrix(X_de)
     y = np.array([1, 1, 0, 0, 0, 0, 1, 1, 1, 0])
 
     for X in (X_de, X_sp):
-        dtc = DecisionTreeClassifier(missing_values="NaN",
+        dtc = DecisionTreeClassifier(missing_values=-999,
                                      random_state=42).fit(X, y)
 
         assert_equal(dtc.tree_.threshold[0], 52.5)
@@ -1893,7 +1893,7 @@ def test_tree_missing_value_handling_corner_cases_random_splitter():
     # the structure of the data exactly.
 
     # All the missing values belong to a single class
-    X_de = np.array([[np.nan], [np.nan], [np.nan], [np.nan],
+    X_de = np.array([[-999], [-999], [-999], [-999],
                     [0], [1], [2], [3], [4], [5],
                     [10], [11], [12], [13], [15]])
     X_sp = coo_matrix(X_de)
@@ -1901,7 +1901,7 @@ def test_tree_missing_value_handling_corner_cases_random_splitter():
 
     # Test both the dense and sparse splitters
     for X in (X_de, X_sp):
-        dtc = DecisionTreeClassifier(missing_values="NaN",
+        dtc = DecisionTreeClassifier(missing_values=-999,
                                      splitter="random",
                                      random_state=42).fit(X, y)
         # No nan thresholds (INF can be a threshold however)
@@ -1909,13 +1909,13 @@ def test_tree_missing_value_handling_corner_cases_random_splitter():
         assert_array_equal(dtc.predict(X), y)
 
     # The missing values and some available values in one class
-    X_de = np.array([[np.nan], [np.nan], [np.nan], [np.nan],
+    X_de = np.array([[-999], [-999], [-999], [-999],
                      [0], [1], [2], [3], [4], [5]])
     X_sp = coo_matrix(X_de)
     y = np.array([1, 1, 1, 1, 1, 2, 2, 2, 2, 2])
 
     for X in (X_de, X_sp):
-        dtc = DecisionTreeClassifier(missing_values="NaN",
+        dtc = DecisionTreeClassifier(missing_values=-999,
                                      splitter="random",
                                      random_state=42).fit(X, y)
         # No nan thresholds (INF can be a threshold however)
@@ -1926,7 +1926,7 @@ def test_tree_missing_value_handling_corner_cases_random_splitter():
     y = np.array([2, 2, 2, 2, 1, 1, 1, 1, 2, 2])
 
     for X in (X_de, X_sp):
-        dtc = DecisionTreeClassifier(missing_values="NaN",
+        dtc = DecisionTreeClassifier(missing_values=-999,
                                      splitter="random",
                                      random_state=42).fit(X, y)
         # No nan thresholds (INF can be a threshold however)
@@ -1940,7 +1940,7 @@ def test_tree_missing_value_handling_corner_cases_random_splitter():
     y = rng.randint(0, 10, (10,))
 
     for X in (X_de, X_sp):
-        dtc = DecisionTreeClassifier(missing_values="NaN",
+        dtc = DecisionTreeClassifier(missing_values=-999,
                                      splitter="random",
                                      random_state=42).fit(X, y)
         # All the missing_direction for non-leaf nodes should be the default of
@@ -1957,13 +1957,13 @@ def test_tree_missing_value_handling_corner_cases_random_splitter():
 
     # When the missing values are equally from all the classes
     # the tree building should split it into separate node
-    X_de = np.array([[110], [100], [1], [2], [0], [np.nan], [500],
-                     [600], [np.nan], [5]])
+    X_de = np.array([[110], [100], [1], [2], [0], [-999], [500],
+                     [600], [-999], [5]])
     X_sp = coo_matrix(X_de)
     y = np.array([1, 1, 0, 0, 0, 0, 1, 1, 1, 0])
 
     for X in (X_de, X_sp):
-        dtc = DecisionTreeClassifier(missing_values="NaN",
+        dtc = DecisionTreeClassifier(missing_values=-999,
                                      splitter="random",
                                      random_state=42).fit(X, y)
 
@@ -1979,27 +1979,27 @@ def test_tree_missing_value_handling_corner_cases_random_splitter():
 
 def test_tree_explicit_missing_mask():
     # All the missing values belong to a single class
-    X_de = np.array([[np.nan], [np.nan], [np.nan], [np.nan],
+    X_de = np.array([[-999], [-999], [-999], [-999],
                     [0], [1], [2], [3], [4], [5],
                     [10], [11], [12], [13], [15]])
     X_sp = coo_matrix(X_de)
     y = np.array([1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 3, 3, 3, 3, 3])
 
     # Check if validation of missing mask is correct
-    est = DecisionTreeClassifier(missing_values="NaN")
-    missing_mask_sp = np.isnan(X_sp.data)
+    est = DecisionTreeClassifier(missing_values=-999)
+    missing_mask_sp = X_sp.data == -999
     assert_array_equal(missing_mask_sp, est._validate_missing_mask(X_sp))
-    missing_mask_de = np.isnan(X_de)
+    missing_mask_de = X_de == -999
     assert_array_equal(missing_mask_de, est._validate_missing_mask(X_de))
 
     # Test both the dense and sparse splitters to see if passing
     # missing mask produces the same effect as autogenerated missing mask
     for X, missing_mask in ((X_de, missing_mask_de), (X_sp, missing_mask_sp)):
-        dtc = DecisionTreeClassifier(missing_values="NaN",
+        dtc = DecisionTreeClassifier(missing_values=-999,
                                      splitter="random",
                                      random_state=42).fit(
                                          X, y)
-        dtc2 = DecisionTreeClassifier(missing_values="NaN",
+        dtc2 = DecisionTreeClassifier(missing_values=-999,
                                       splitter="random",
                                       random_state=42).fit(
                                           X, y, missing_mask=missing_mask)

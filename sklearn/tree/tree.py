@@ -111,26 +111,19 @@ class BaseDecisionTree(six.with_metaclass(ABCMeta, BaseEstimator)):
         self.missing_values = missing_values
         self.allow_missing = missing_values is not None
 
-        # If missing values is int/None
-        self._allow_nan = False
         self.missing_values = missing_values
 
         if self.allow_missing:
-            if (isinstance(missing_values, str) and
-                    missing_values.strip().lower() == "nan"):
-                self._allow_nan = True
-                self.missing_values = np.nan
-            elif not isinstance(missing_values, int):
-                raise ValueError("missing_values should be 'NaN' or int. "
-                                 "Got %s", missing_values)
+            if not isinstance(missing_values, int):
+                raise ValueError("missing_values should be int. "
+                                 "Got %s" % missing_values)
 
     def fit(self, X, y, sample_weight=None, check_input=True,
             X_idx_sorted=None, missing_mask=None):
         random_state = check_random_state(self.random_state)
 
         if check_input:
-            X = check_array(X, dtype=DTYPE, accept_sparse="csc",
-                            allow_nan=self._allow_nan)
+            X = check_array(X, dtype=DTYPE, accept_sparse="csc")
             y = check_array(y, ensure_2d=False, dtype=None)
             if issparse(X):
                 X.sort_indices()
@@ -407,8 +400,7 @@ class BaseDecisionTree(six.with_metaclass(ABCMeta, BaseEstimator)):
     def _validate_X_predict(self, X, check_input):
         """Validate X whenever one tries to predict, apply, predict_proba"""
         if check_input:
-            X = check_array(X, dtype=DTYPE, accept_sparse="csr",
-                            allow_nan=self._allow_nan)
+            X = check_array(X, dtype=DTYPE, accept_sparse="csr")
             if issparse(X) and (X.indices.dtype != np.intc or
                                 X.indptr.dtype != np.intc):
                 raise ValueError("No support for np.int64 index based "
@@ -432,13 +424,9 @@ class BaseDecisionTree(six.with_metaclass(ABCMeta, BaseEstimator)):
             else:
                 to_mask = X
 
-            if self._allow_nan:  # Missing value is a NaN
-                missing_mask = np.asfortranarray(np.isnan(to_mask),
-                                                 dtype=np.bool8)
-            else:
-                missing_mask = np.zeros(to_mask.shape,
-                                        dtype=np.bool8, order='F')
-                missing_mask[to_mask == self.missing_values] = True
+            missing_mask = np.zeros(to_mask.shape,
+                                    dtype=np.bool8, order='F')
+            missing_mask[to_mask == self.missing_values] = True
         return missing_mask
 
     def predict(self, X, check_input=True, missing_mask=None):
