@@ -413,6 +413,7 @@ def accumulate_prediction(predict, X, out):
         for i in range(len(out)):
             out[i] += prediction[i]
 
+
 def accumulate_prediction_mis(predict, X, missing_mask, out):
     prediction = predict(X, check_input=False, missing_mask=missing_mask)
     if len(out) == 1:
