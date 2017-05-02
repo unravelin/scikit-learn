@@ -368,7 +368,13 @@ cdef class BestSplitter(BaseDenseSplitter):
         cdef double best_proxy_improvement = -INFINITY
 
         cdef SIZE_t f_i = n_features
-        cdef SIZE_t f_j, tmp, p, feature_idx_offset, feature_offset, i, j
+        cdef SIZE_t f_j
+        cdef SIZE_t tmp
+        cdef SIZE_t p
+        cdef SIZE_t feature_idx_offset
+        cdef SIZE_t feature_offset
+        cdef SIZE_t i
+        cdef SIZE_t j
 
         cdef SIZE_t n_visited_features = 0
         # Number of features discovered to be constant during the split search
