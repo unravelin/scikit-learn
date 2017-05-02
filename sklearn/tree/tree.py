@@ -674,7 +674,7 @@ class DecisionTreeClassifier(BaseDecisionTree, ClassifierMixin):
         When using either a smaller dataset or a restricted depth, this may
         speed up the training.
 
-    missing_values : integer or "NaN", optional (default=None)
+    missing_values : integer, optional (default=None)
         The placeholder for the missing values. If not None, all missing
         values will be imputed.
 
@@ -1014,7 +1014,7 @@ class DecisionTreeRegressor(BaseDecisionTree, RegressorMixin):
         When using either a smaller dataset or a restricted depth, this may
         speed up the training.
 
-    missing_values : integer or "NaN", optional (default=None)
+    missing_values : integer, optional (default=None)
         The placeholder for the missing values. If not None, all missing
         values will be imputed.
 
