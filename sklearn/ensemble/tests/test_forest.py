@@ -1269,10 +1269,10 @@ def check_decision_path(name):
 
 def check_decision_path_missing_values(name):
     X, y = X_missing, y_missing
-    n_samples = X.shape[0]
+    n_samples = len(X)
     ForestEstimator = FOREST_ESTIMATORS[name]
     est = ForestEstimator(n_estimators=5, max_depth=1, warm_start=False,
-                          missing_values="NaN", random_state=1)
+                          missing_values=-999, random_state=1)
     est.fit(X, y)
     indicator, n_nodes_ptr = est.decision_path(X)
 
@@ -1292,6 +1292,7 @@ def check_decision_path_missing_values(name):
 def test_decision_path():
     for name in FOREST_CLASSIFIERS:
         yield check_decision_path, name
+        yield check_decision_path_missing_values, name
     for name in FOREST_REGRESSORS:
         yield check_decision_path, name
 
