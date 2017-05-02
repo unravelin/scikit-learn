@@ -940,7 +940,7 @@ cdef class RandomSplitter(BaseDenseSplitter):
         cdef SIZE_t f_j
         cdef SIZE_t p
         cdef SIZE_t tmp
-        cdef SIZE_t feature_offset
+        cdef SIZE_t feature_stride
         # Number of features discovered to be constant during the split search
         cdef SIZE_t n_found_constants = 0
         # Number of features known to be constant and drawn without replacement
@@ -1008,7 +1008,7 @@ cdef class RandomSplitter(BaseDenseSplitter):
                 # f_j in the interval [n_total_constants, f_i[
 
                 current.feature = features[f_j]
-                feature_offset = X_feature_stride * current.feature
+                feature_stride = X_feature_stride * current.feature
 
                 p = start
                 n_missing = 0
@@ -1023,12 +1023,12 @@ cdef class RandomSplitter(BaseDenseSplitter):
 
                 # Find min, max
                 # NOTE Do this after moving the missing values to the end
-                min_feature_value = X[X_sample_stride * samples[start] + feature_offset]
+                min_feature_value = X[X_sample_stride * samples[start] + feature_stride]
                 max_feature_value = min_feature_value
                 Xf[start] = min_feature_value
 
                 for p in range(start + 1, end_available):
-                    current_feature_value = X[X_sample_stride * samples[p] + feature_offset]
+                    current_feature_value = X[X_sample_stride * samples[p] + feature_stride]
                     Xf[p] = current_feature_value
 
                     if current_feature_value < min_feature_value:
@@ -1131,7 +1131,7 @@ cdef class RandomSplitter(BaseDenseSplitter):
         if (best.pos < end_available or
                 (best.pos == end_available and
                     best.missing_direction == MISSING_DIR_RIGHT)):
-            feature_offset = X_feature_stride * best.feature
+            feature_stride = X_feature_stride * best.feature
             miss_mask_feat_offset = self.missing_mask_stride * best.feature
 
             # The missing values should be moved to the right partition
@@ -1152,7 +1152,7 @@ cdef class RandomSplitter(BaseDenseSplitter):
             q = end_available
 
             while p < q:
-                if X[X_sample_stride * samples[p] + feature_offset] <= best.threshold:
+                if X[X_sample_stride * samples[p] + feature_stride] <= best.threshold:
                     p += 1
                 else:
                     q -= 1
