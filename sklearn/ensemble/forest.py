@@ -1853,9 +1853,7 @@ class RandomTreesEmbedding(BaseForest):
         X_transformed : sparse matrix, shape=(n_samples, n_out)
             Transformed dataset.
         """
-        # ensure_2d=False because there are actually unit test checking we fail
-        # for 1d.
-        X = check_array(X, accept_sparse=['csc'], ensure_2d=False)
+        X = check_array(X, accept_sparse=['csc'])
         if issparse(X):
             # Pre-sort indices to avoid that each individual tree of the
             # ensemble sorts the indices.
