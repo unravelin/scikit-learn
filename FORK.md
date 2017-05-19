@@ -14,6 +14,10 @@ np.array attribute that will contain missing direction for each (left/right).
 Missing direction is the direction taken during the prediction if the value is
 missing.
 
+If you instantiate `EnsembleInspector` with `missing_values=None` then explicit
+dealing with missing values will be turned off. Each tree's `missing_value`
+attribute will be empty. This is equivalent to training on unmodified sklearn.
+
 Whilst the improvement of accuracy is marginal, it gives you greater control
 over dealing with missing values.
 
