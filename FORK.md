@@ -18,8 +18,9 @@ If you instantiate `EnsembleInspector` with `missing_values=None` then explicit
 dealing with missing values will be turned off. Each tree's `missing_value`
 attribute will be empty. This is equivalent to training on unmodified sklearn.
 
-Whilst the improvement of accuracy is marginal, it gives you greater control
-over dealing with missing values.
+Whilst the improvement of accuracy gained from dealing with missing values
+explicitly is marginal, it gives you greater control over how to handle missing
+during predictions.
 
 # How do I install this?
 
