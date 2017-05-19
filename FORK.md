@@ -40,7 +40,7 @@ If you want to avoid using `requirements.txt` file then run the following:
 
 `pip3 install --trusted-host piprepo.ravdns2.co.uk --extra-index-url https://piprepo.ravdns2.co.uk scikit-learn==0.19.1+ravelin`
 
-# How to do a release?
+# How to make a release?
 
 WIP
 
