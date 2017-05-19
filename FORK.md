@@ -10,7 +10,7 @@ and the latest rebase of his work will live in `rf_missing` branch of this repos
 Dealing with missing values on this release is explicit. If you instantiate
 `EnsembleInspector` with `missing_values=-99` then `-99` will be treated as
 missing sentinel when training. Resulting trees will have `missing_value`
-np.array attribute that will contain missing direction for each (left/right).
+np.array attribute that will contain missing direction for each node (left/right).
 Missing direction is the direction taken during the prediction if the value is
 missing.
 
